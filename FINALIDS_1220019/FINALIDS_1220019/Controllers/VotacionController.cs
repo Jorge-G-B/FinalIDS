@@ -1,17 +1,85 @@
 ﻿using FINALIDS_1220019.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Security.Claims;
+using System.Text;
 
 namespace FINALIDS_1220019.Controllers
 {
+
+
     [ApiController]
     [Route("Votacion")]
     public class VotacionController : Controller
     {
+        private readonly IConfiguration configuration;
+
+        public VotacionController(IConfiguration _configuration)
+        {
+            configuration = _configuration;
+        }
+
         static int Fase = 1;
 
 
+        [Route("Login")]
+        [HttpPost]
+        public Token Login(Usuario user)
+        {
+            FinalIdsContext _VotacionContext = new FinalIdsContext();
+            Usuario usuario = (from users in _VotacionContext.Usuarios
+                                          where users.Usuario1 == user.Usuario1
+                                          select users).FirstOrDefault();
+            Token tokenresult = new Token();
+            if (usuario.Contraseña == user.Contraseña)
+            {
+                string applicationName = "FINALIDS_1220019";
+                tokenresult.expirationTime = DateTime.Now.AddMinutes(30);
+                tokenresult.token = CustomTokenJWT(applicationName, tokenresult.expirationTime);
+            }
+            return tokenresult;
+        }
 
+        private string CustomTokenJWT(string ApplicationName, DateTime token_expiration)
+
+        {
+
+            var _symmetricSecurityKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(configuration["JWT:SecretKey"])
+                );
+            var _signingCredentials = new SigningCredentials(
+                    _symmetricSecurityKey, SecurityAlgorithms.HmacSha256
+                );
+
+            var _Header = new JwtHeader(_signingCredentials);
+            var _Claims = new[] {
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.NameId, ApplicationName),
+                new Claim("Name", "nombrepesrsona")
+            };
+
+            var _Payload = new JwtPayload(
+
+                    issuer: configuration["JWT:Issuer"],
+                    audience: configuration["JWT:Audience"],
+                    claims: _Claims,
+                    notBefore: DateTime.Now,
+                    expires: token_expiration
+                );
+
+            var _Token = new JwtSecurityToken(
+                    _Header,
+                    _Payload
+                );
+
+            return new JwtSecurityTokenHandler().WriteToken(_Token);
+
+        }
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpPost("CreateCandidato")]
         public async Task<ActionResult<Candidato>> Create(Candidato candidato)
         {
@@ -126,6 +194,7 @@ namespace FINALIDS_1220019.Controllers
             }
         }
 
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpPut("CambioFase")]
         public IActionResult ChangePhase()
         {

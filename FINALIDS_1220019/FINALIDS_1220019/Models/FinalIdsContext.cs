@@ -21,6 +21,8 @@ public partial class FinalIdsContext : DbContext
 
     public virtual DbSet<Voto> Votos { get; set; }
 
+    public virtual DbSet<Usuario> Usuarios { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
@@ -77,7 +79,8 @@ public partial class FinalIdsContext : DbContext
             entity.ToTable("usuario");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Usuario1).HasMaxLength(255);
+            entity.Property(e => e.Usuario1).HasMaxLength(255)
+                .HasColumnName("usuario");
             entity.Property(e => e.Contraseña).HasMaxLength(255);
         });
 
